@@ -5,7 +5,7 @@ ARG BUILD_BOARD
 
 # Pull the correct build of lora_gateway image
 ARG BUILD_ARCH
-ARG FROM_PATH=nebraltd/lora_gateway:$BUILD_ARCH-da13e37d2ecc475de9f687b0b07ee0a2c5505213
+ARG FROM_PATH=nebraltd/lora_gateway:$BUILD_ARCH-b3e744b0ddde0b3b238779fbf7482702d05ff7c7
 FROM $FROM_PATH AS lora_gateway
 
 FROM balenalib/"$BUILD_BOARD"-debian:bullseye-build AS lora-pkt-fwd-sx1301-builder
