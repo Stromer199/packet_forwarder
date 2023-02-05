@@ -1,7 +1,14 @@
 # Builds lora_pkt_fwd for each SPI bus and copies each to
 # $OUTPUT_DIR/ respectively.
 
-FROM balenalib/raspberry-pi-debian:buster-build as lora-pkt-fwd-sx1301-builder
+ARG BUILD_BOARD
+
+# Pull the correct build of lora_gateway image
+ARG BUILD_ARCH
+ARG FROM_PATH=nebraltd/lora_gateway:$BUILD_ARCH-da13e37d2ecc475de9f687b0b07ee0a2c5505213
+FROM $FROM_PATH as lora_gateway
+
+FROM balenalib/"$BUILD_BOARD"-debian:bullseye-build AS lora-pkt-fwd-sx1301-builder
 
 ENV ROOT_DIR=/opt
 
@@ -21,7 +28,7 @@ WORKDIR "$ROOT_DIR"
 
 # Copy files into expected location
 COPY . "$PACKET_FORWARDER_INPUT_DIR"
-COPY --from=nebraltd/lora_gateway:3a181a50b5b29757200d0f9b0d6cfef22db613b7 "$LORA_GATEWAY_OUTPUT_DIR" "$LORA_GATEWAY_INPUT_DIR"
+COPY --from=lora_gateway "$LORA_GATEWAY_OUTPUT_DIR" "$LORA_GATEWAY_INPUT_DIR"
 
 # Compile lora_pkt_fwd for all buses
 RUN . "$PACKET_FORWARDER_INPUT_DIR/compile_lora_pkt_fwd.sh"
