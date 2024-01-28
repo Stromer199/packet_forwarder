@@ -1,10 +1,10 @@
 # Builds lora_pkt_fwd for each SPI bus and copies each to
 # $OUTPUT_DIR/ respectively.
 
-ARG BUILD_BOARD
+ARG BUILD_BOARD=raspberrypi3-64
+ARG BUILD_ARCH=arm64
 
 # Pull the correct build of lora_gateway image
-ARG BUILD_ARCH
 ARG FROM_PATH=nebraltd/lora_gateway:$BUILD_ARCH-9d02824848a85035d63d00820c09d1508a29c29b
 FROM $FROM_PATH AS lora_gateway
 
