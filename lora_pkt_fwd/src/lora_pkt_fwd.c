@@ -1583,7 +1583,7 @@ void thread_up(void) {
             switch(p->status) {
                 case STAT_CRC_OK:
                     meas_nb_rx_ok += 1;
-                    printf( "\nINFO: Received pkt from mote: %08X (fcnt=%u)\n", mote_addr, mote_fcnt );
+                    MSG_DEBUG(DEBUG_PKT_FWD, "\nINFO: Received pkt from mote: %08X (fcnt=%u)\n", mote_addr, mote_fcnt);
                     if (!fwd_valid_pkt) {
                         pthread_mutex_unlock(&mx_meas_up);
                         continue; /* skip that packet */
@@ -1899,7 +1899,7 @@ void thread_up(void) {
                 //MSG("WARNING: [up] ignored out-of sync ACK packet\n");
                 continue;
             } else {
-                MSG("INFO: [up] PUSH_ACK received in %i ms\n", (int)(1000 * difftimespec(recv_time, send_time)));
+                MSG_DEBUG(DEBUG_PKT_FWD, "INFO: [up] PUSH_ACK received in %i ms\n", (int)(1000 * difftimespec(recv_time, send_time)));
                 meas_up_ack_rcv += 1;
                 break;
             }
