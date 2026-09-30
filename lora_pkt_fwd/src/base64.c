@@ -52,6 +52,7 @@ char code_to_char(uint8_t x);
 
 /**
 @brief Convert an ASCII character to a code in the range 0-63
+@return UINT8_MAX if the character is outside the Base64 alphabet
 */
 uint8_t char_to_code(char x);
 
@@ -88,8 +89,8 @@ uint8_t char_to_code(char x) {
         return 63;
     } else {
         DEBUG("ERROR: %c (0x%x) IS INVALID CHARACTER FOR BASE64 DECODING\n", x, x);
-        exit(EXIT_FAILURE);
-    } //TODO: improve error management
+        return UINT8_MAX;
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -185,6 +186,14 @@ int b64_to_bin_nopad(const char * in, int size, uint8_t * out, int max_len) {
     }
     if (size == 0) {
         return 0;
+    }
+    if (size < 0) {
+        return -1;
+    }
+    for (i = 0; i < size; i++) {
+        if (char_to_code(in[i]) == UINT8_MAX) {
+            return -1;
+        }
     }
 
     /* calculate the number of base64 'blocks' */
@@ -293,6 +302,9 @@ int b64_to_bin(const char * in, int size, uint8_t * out, int max_len) {
     }
     if ((size%4 == 0) && (size >= 4)) { /* potentially padded Base64 */
         if (in[size-2] == code_pad) { /* 2 padding char to ignore */
+            if (in[size-1] != code_pad) {
+                return -1;
+            }
             return b64_to_bin_nopad(in, size-2, out, max_len);
         } else if (in[size-1] == code_pad) { /* 1 padding char to ignore */
             return b64_to_bin_nopad(in, size-1, out, max_len);

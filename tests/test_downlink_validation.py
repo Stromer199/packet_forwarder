@@ -58,6 +58,27 @@ int accept_rf_chain(const char *json) {
     return 0;
 }
 
+
+int accept_payload(const char *json) {
+    JSON_Value *root_val = json_parse_string(json);
+    assert(root_val != NULL);
+    JSON_Object *txpk_obj = json_value_get_object(root_val);
+    JSON_Value *val;
+    double payload_size_value;
+    const char *str;
+    int i;
+    uint8_t buff_down[] = {0, 0x12, 0x34};
+    struct { uint16_t size; uint8_t payload[256]; } txpkt = {0};
+    for (int once = 0; once < 1; once++) {
+        __PAYLOAD_PARSER__
+        assert(txpkt.size <= 255);
+        if (txpkt.size == 1) assert(txpkt.payload[0] == 1);
+        json_value_free(root_val);
+        return 1;
+    }
+    return 0;
+}
+
 int main(void) {
     const char *invalid[] = {
         "{\"rfch\":2}", "{\"rfch\":-1}", "{\"rfch\":256}",
@@ -76,20 +97,57 @@ int main(void) {
     /* A rejected datagram must not prevent a following valid one. */
     assert(accept_rf_chain("{\"rfch\":0}") == 1);
     puts("downlink RF-chain validation passed");
+
+    const char *invalid_payload[] = {
+        "{\"size\":2,\"data\":\"AQ==\"}",
+        "{\"size\":0,\"data\":\"?\"}",
+        "{\"size\":1,\"data\":\"!Q==\"}",
+        "{\"size\":1,\"data\":\"AQ=!\"}",
+        "{\"size\":256,\"data\":\"AQ==\"}",
+        "{\"size\":-1,\"data\":\"AQ==\"}",
+        "{\"size\":65537,\"data\":\"AQ==\"}",
+        "{\"size\":0.5,\"data\":\"\"}",
+        "{\"size\":\"1\",\"data\":\"AQ==\"}",
+        "{\"size\":null,\"data\":\"\"}",
+        "{\"size\":1e999,\"data\":\"AQ==\"}"
+    };
+    char encoded[341];
+    char maximum[400];
+    memset(encoded, 'A', sizeof(encoded) - 1);
+    encoded[sizeof(encoded) - 1] = '\0';
+    snprintf(maximum, sizeof(maximum), "{\"size\":255,\"data\":\"%s\"}", encoded);
+    ack_count = 0;
+    assert(accept_payload("{\"size\":0,\"data\":\"\"}") == 1);
+    assert(accept_payload("{\"size\":1,\"data\":\"AQ==\"}") == 1);
+    assert(accept_payload("{\"size\":1,\"data\":\"AQ\"}") == 1);
+    assert(accept_payload(maximum) == 1);
+    assert(ack_count == 0);
+    for (unsigned i = 0; i < sizeof(invalid_payload) / sizeof(invalid_payload[0]); i++) {
+        ack_count = 0;
+        assert(accept_payload(invalid_payload[i]) == 0);
+        assert(ack_count == 1);
+    }
+    assert(accept_payload("{\"size\":1,\"data\":\"AQ==\"}") == 1);
+    puts("downlink payload validation passed");
+
     return 0;
 }
 '''
 
 
 class DownlinkValidationTest(unittest.TestCase):
-    def test_rf_chain_is_valid_before_array_access(self):
+    def test_invalid_fields_are_rejected_before_queueing(self):
         source = (FORWARDER / "src/lora_pkt_fwd.c").read_text()
         start = source.index("            /* parse RF chain used for TX (mandatory) */")
         end = source.index("            /* parse TX power (optional field) */", start)
+        payload_start = source.index("            /* Parse payload length (mandatory) */")
+        payload_end = source.index("            /* free the JSON parse tree from memory */", payload_start)
         with tempfile.TemporaryDirectory(prefix="downlink-parser-test-") as directory:
             work = Path(directory)
             (work / "parser.c").write_text(
-                HARNESS.replace("__RF_CHAIN_PARSER__", source[start:end])
+                HARNESS.replace("__RF_CHAIN_PARSER__", source[start:end]).replace(
+                    "__PAYLOAD_PARSER__", source[payload_start:payload_end]
+                )
             )
             executable = work / "parser"
             subprocess.run(

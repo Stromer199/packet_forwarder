@@ -1981,6 +1981,7 @@ void thread_down(void) {
     uint64_t x2;
     double x3, x4;
     double rf_chain_value;
+    double payload_size_value;
 
     /* variables to send on GPS timestamp */
     struct tref local_ref; /* time reference used for GPS <-> timestamp conversion */
@@ -2556,7 +2557,16 @@ void thread_down(void) {
                 json_value_free(root_val);
                 continue;
             }
-            txpkt.size = (uint16_t)json_value_get_number(val);
+            payload_size_value = json_value_get_number(val);
+            if ((json_value_get_type(val) != JSONNumber) || !isfinite(payload_size_value) ||
+                (payload_size_value < 0) || (payload_size_value > 255) ||
+                (payload_size_value != floor(payload_size_value))) {
+                MSG("WARNING: [down] invalid payload length in \"txpk.size\", TX aborted\n");
+                json_value_free(root_val);
+                send_tx_ack(buff_down[1], buff_down[2], JIT_ERROR_INVALID, 0);
+                continue;
+            }
+            txpkt.size = (uint16_t)payload_size_value;
 
             /* Parse payload data (mandatory) */
             str = json_object_get_string(txpk_obj, "data");
@@ -2567,7 +2577,10 @@ void thread_down(void) {
             }
             i = b64_to_bin(str, strlen(str), txpkt.payload, sizeof txpkt.payload);
             if (i != txpkt.size) {
-                MSG("WARNING: [down] mismatch between .size and .data size once converter to binary\n");
+                MSG("WARNING: [down] invalid payload or mismatch between .size and decoded .data, TX aborted\n");
+                json_value_free(root_val);
+                send_tx_ack(buff_down[1], buff_down[2], JIT_ERROR_INVALID, 0);
+                continue;
             }
 
             /* free the JSON parse tree from memory */
