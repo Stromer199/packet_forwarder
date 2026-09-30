@@ -1980,6 +1980,7 @@ void thread_down(void) {
     short x0, x1;
     uint64_t x2;
     double x3, x4;
+    double rf_chain_value;
 
     /* variables to send on GPS timestamp */
     struct tref local_ref; /* time reference used for GPS <-> timestamp conversion */
@@ -2406,7 +2407,16 @@ void thread_down(void) {
                 json_value_free(root_val);
                 continue;
             }
-            txpkt.rf_chain = (uint8_t)json_value_get_number(val);
+            rf_chain_value = json_value_get_number(val);
+            if ((json_value_get_type(val) != JSONNumber) || !isfinite(rf_chain_value) ||
+                (rf_chain_value < 0) || (rf_chain_value >= LGW_RF_CHAIN_NB) ||
+                (rf_chain_value != floor(rf_chain_value))) {
+                MSG("WARNING: [down] invalid RF chain in \"txpk.rfch\", TX aborted\n");
+                json_value_free(root_val);
+                send_tx_ack(buff_down[1], buff_down[2], JIT_ERROR_INVALID, 0);
+                continue;
+            }
+            txpkt.rf_chain = (uint8_t)rf_chain_value;
 
             /* parse TX power (optional field) */
             val = json_object_get_value(txpk_obj,"powe");
