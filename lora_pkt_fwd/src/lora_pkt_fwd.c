@@ -1873,7 +1873,10 @@ void thread_up(void) {
         MSG_DEBUG(DEBUG_PKT_FWD, "\nJSON up: %s\n", (char *)(buff_up + 12));
 
         /* send datagram to server */
-        send(sock_up, (void *)buff_up, buff_index, 0);
+        if (send(sock_up, (void *)buff_up, buff_index, 0) == -1) {
+            MSG("WARNING: [up] failed to send PUSH_DATA: %s\n", strerror(errno));
+            continue;
+        }
         clock_gettime(CLOCK_MONOTONIC, &send_time);
         pthread_mutex_lock(&mx_meas_up);
         meas_up_dgram_sent += 1;
